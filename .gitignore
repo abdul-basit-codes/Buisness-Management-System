@@ -1,0 +1,6 @@
+*.exe
+*.out
+*.o
+*.obj
+sbms/sbms
+.DS_Store

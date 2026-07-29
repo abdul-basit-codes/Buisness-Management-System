@@ -8,6 +8,7 @@
 #include "FileManager.h"
 #include "Invoice.h"
 #include "Report.h"
+#include "Payroll.h"
 
 const std::string APP_NAME = "Small Business Management System";
 const std::string APP_VERSION = "1.0.0";
@@ -55,6 +56,23 @@ int nextId(const std::vector<Employee>& items) {
     int maxId = 0;
     for (const auto& i : items) maxId = std::max(maxId, i.getId());
     return maxId + 1;
+}
+
+void payrollMenu() {
+    std::vector<Employee> employees = FileManager::loadEmployees(EMPLOYEES_FILE);
+    if (employees.empty()) { std::cout << "No employees found. Add employees first.\n"; return; }
+
+    double bonusPct, taxPct;
+    std::cout << "\n--- Payroll Processing ---\n";
+    std::cout << "Employees on file: " << employees.size() << "\n";
+    std::cout << "Enter bonus percentage (e.g. 5 for 5%): ";
+    std::cin >> bonusPct;
+    std::cout << "Enter tax/deduction percentage (e.g. 10 for 10%): ";
+    std::cin >> taxPct;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    auto payroll = Payroll::generatePayroll(employees, bonusPct, taxPct);
+    Payroll::printPayroll(payroll);
 }
 
 void reportsMenu() {
@@ -392,9 +410,10 @@ void showMainMenu() {
     std::cout << "2. Employee Management\n";
     std::cout << "3. Service Management\n";
     std::cout << "4. Booking Management\n";
-    std::cout << "5. Billing & Invoicing\n";
-    std::cout << "6. Reports\n";
-    std::cout << "7. Daily Report (Quick)\n";
+    std::cout << "5. Payroll Processing\n";
+    std::cout << "6. Billing & Invoicing\n";
+    std::cout << "7. Reports\n";
+    std::cout << "8. Daily Report (Quick)\n";
     std::cout << "0. Exit\n";
     std::cout << "Choice: ";
 }
@@ -416,9 +435,10 @@ int main() {
             case 2: employeeMenu(); break;
             case 3: serviceMenu(); break;
             case 4: bookingMenu(); break;
-            case 5: billingMenu(); break;
-            case 6: reportsMenu(); break;
-            case 7: {
+            case 5: payrollMenu(); break;
+            case 6: billingMenu(); break;
+            case 7: reportsMenu(); break;
+            case 8: {
                 auto invoices = FileManager::loadInvoices(INVOICES_FILE);
                 auto services = FileManager::loadServices(SERVICES_FILE);
                 Report::printDailyReport(invoices, services);

@@ -6,6 +6,8 @@
 #include "Service.h"
 #include "Booking.h"
 #include "FileManager.h"
+#include "Invoice.h"
+#include "Report.h"
 
 const std::string APP_NAME = "Small Business Management System";
 const std::string APP_VERSION = "1.0.0";
@@ -14,6 +16,7 @@ const std::string CUSTOMERS_FILE = "data/customers.txt";
 const std::string EMPLOYEES_FILE = "data/employees.txt";
 const std::string SERVICES_FILE  = "data/services.txt";
 const std::string BOOKINGS_FILE  = "data/bookings.txt";
+const std::string INVOICES_FILE  = "data/invoices.txt";
 
 std::string promptNonEmpty(const std::string& label) {
     std::string value;
@@ -59,83 +62,87 @@ void reportsMenu() {
     std::vector<Customer> customers = FileManager::loadCustomers(CUSTOMERS_FILE);
     std::vector<Service> services = FileManager::loadServices(SERVICES_FILE);
     std::vector<Employee> employees = FileManager::loadEmployees(EMPLOYEES_FILE);
+    std::vector<Invoice> invoices = FileManager::loadInvoices(INVOICES_FILE);
 
-    int completed = 0, pending = 0;
-    double revenue = 0.0;
-    for (const auto& b : bookings) {
-        if (b.isCompleted()) {
-            completed++;
-            for (const auto& s : services) {
-                if (s.getId() == b.getServiceId()) {
-                    revenue += s.getPrice();
-                    break;
-                }
+    int choice = -1;
+    while (choice != 0) {
+        std::cout << "\n--- Reports ---\n";
+        std::cout << "1. Business Overview\n2. Sales Summary\n3. Popular Services\n0. Back\nChoice: ";
+        std::cin >> choice;
+        if (std::cin.fail()) { std::cin.clear(); std::cin.ignore(10000, '\n'); continue; }
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        if (choice == 1) {
+            int completed = 0, pending = 0;
+            for (const auto& b : bookings) {
+                if (b.isCompleted()) completed++; else pending++;
             }
-        } else {
-            pending++;
+            std::cout << "\n========= BUSINESS OVERVIEW =========\n";
+            std::cout << "Total Customers:     " << customers.size() << "\n";
+            std::cout << "Total Employees:     " << employees.size() << "\n";
+            std::cout << "Total Services:      " << services.size() << "\n";
+            std::cout << "Total Bookings:      " << bookings.size() << "\n";
+            std::cout << "  Completed:         " << completed << "\n";
+            std::cout << "  Pending:           " << pending << "\n";
+            std::cout << "Total Invoices:      " << invoices.size() << "\n";
+            std::cout << "======================================\n";
+        } else if (choice == 2) {
+            auto summary = Report::generateSalesSummary(invoices, services);
+            Report::printSalesSummary(summary);
+        } else if (choice == 3) {
+            auto pop = Report::popularServices(invoices);
+            if (pop.empty()) std::cout << "No invoice data yet.\n";
+            else Report::printPopularServices(pop, services);
         }
     }
-
-    std::cout << "\n========= BUSINESS REPORT =========\n";
-    std::cout << "Total Customers:     " << customers.size() << "\n";
-    std::cout << "Total Employees:     " << employees.size() << "\n";
-    std::cout << "Total Services:      " << services.size() << "\n";
-    std::cout << "Total Bookings:      " << bookings.size() << "\n";
-    std::cout << "  Completed:         " << completed << "\n";
-    std::cout << "  Pending:           " << pending << "\n";
-    std::cout << "Revenue (completed): " << revenue << "\n";
-    std::cout << "====================================\n";
 }
 
 void billingMenu() {
     std::vector<Booking> bookings = FileManager::loadBookings(BOOKINGS_FILE);
     std::vector<Customer> customers = FileManager::loadCustomers(CUSTOMERS_FILE);
     std::vector<Service> services = FileManager::loadServices(SERVICES_FILE);
+    std::vector<Invoice> invoices = FileManager::loadInvoices(INVOICES_FILE);
 
-    int bookingId;
-    std::cout << "\n--- Generate Invoice ---\n";
-    std::cout << "Enter Booking ID: ";
-    std::cin >> bookingId;
+    int choice = -1;
+    while (choice != 0) {
+        std::cout << "\n--- Billing & Invoicing ---\n";
+        std::cout << "1. Generate Invoice from Booking\n2. View All Invoices\n3. View Sales Report\n0. Back\nChoice: ";
+        std::cin >> choice;
+        if (std::cin.fail()) { std::cin.clear(); std::cin.ignore(10000, '\n'); continue; }
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    const Booking* booking = nullptr;
-    for (const auto& b : bookings) {
-        if (b.getId() == bookingId) { booking = &b; break; }
-    }
-    if (!booking) {
-        std::cout << "Booking not found.\n";
-        return;
-    }
+        if (choice == 1) {
+            int bookingId;
+            std::cout << "Enter Booking ID: ";
+            std::cin >> bookingId;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    const Customer* customer = nullptr;
-    for (const auto& c : customers) {
-        if (c.getId() == booking->getCustomerId()) { customer = &c; break; }
-    }
-    const Service* service = nullptr;
-    for (const auto& s : services) {
-        if (s.getId() == booking->getServiceId()) { service = &s; break; }
-    }
-    if (!customer || !service) {
-        std::cout << "Related customer or service data missing.\n";
-        return;
-    }
+            const Booking* booking = nullptr;
+            for (const auto& b : bookings) {
+                if (b.getId() == bookingId) { booking = &b; break; }
+            }
+            if (!booking) { std::cout << "Booking not found.\n"; continue; }
 
-    double tax = service->getPrice() * 0.05;
-    double total = service->getPrice() + tax;
-
-    std::cout << "\n========= INVOICE =========\n";
-    std::cout << "Booking ID: " << booking->getId() << "\n";
-    std::cout << "Customer:   " << customer->getName() << "\n";
-    std::cout << "Service:    " << service->getName() << "\n";
-    std::cout << "Date:       " << booking->getDate() << "\n";
-    std::cout << "----------------------------\n";
-    std::cout << "Subtotal:   " << service->getPrice() << "\n";
-    std::cout << "Tax (5%):   " << tax << "\n";
-    std::cout << "TOTAL:      " << total << "\n";
-    std::cout << "Status:     " << (booking->isCompleted() ? "Paid/Completed" : "Pending") << "\n";
-    std::cout << "============================\n";
+            Invoice inv(nextId(invoices), booking->getCustomerId(), {booking->getServiceId()}, {1}, 0.05);
+            invoices.push_back(inv);
+            FileManager::saveInvoices(INVOICES_FILE, invoices);
+            inv.print(services);
+        } else if (choice == 2) {
+            if (invoices.empty()) std::cout << "No invoices yet.\n";
+            for (const auto& inv : invoices) inv.print(services);
+        } else if (choice == 3) {
+            Report::printDailyReport(invoices, services);
+        }
+    }
 }
 
 int nextId(const std::vector<Booking>& items) {
+    int maxId = 0;
+    for (const auto& i : items) maxId = std::max(maxId, i.getId());
+    return maxId + 1;
+}
+
+int nextId(const std::vector<Invoice>& items) {
     int maxId = 0;
     for (const auto& i : items) maxId = std::max(maxId, i.getId());
     return maxId + 1;
@@ -385,8 +392,9 @@ void showMainMenu() {
     std::cout << "2. Employee Management\n";
     std::cout << "3. Service Management\n";
     std::cout << "4. Booking Management\n";
-    std::cout << "5. Billing\n";
+    std::cout << "5. Billing & Invoicing\n";
     std::cout << "6. Reports\n";
+    std::cout << "7. Daily Report (Quick)\n";
     std::cout << "0. Exit\n";
     std::cout << "Choice: ";
 }
@@ -404,29 +412,20 @@ int main() {
             continue;
         }
         switch (choice) {
-            case 1:
-                customerMenu();
+            case 1: customerMenu(); break;
+            case 2: employeeMenu(); break;
+            case 3: serviceMenu(); break;
+            case 4: bookingMenu(); break;
+            case 5: billingMenu(); break;
+            case 6: reportsMenu(); break;
+            case 7: {
+                auto invoices = FileManager::loadInvoices(INVOICES_FILE);
+                auto services = FileManager::loadServices(SERVICES_FILE);
+                Report::printDailyReport(invoices, services);
                 break;
-            case 2:
-                employeeMenu();
-                break;
-            case 3:
-                serviceMenu();
-                break;
-            case 4:
-                bookingMenu();
-                break;
-            case 5:
-                billingMenu();
-                break;
-            case 6:
-                reportsMenu();
-                break;
-            case 0:
-                std::cout << "Goodbye!\n";
-                break;
-            default:
-                std::cout << "Invalid choice.\n";
+            }
+            case 0: std::cout << "Goodbye!\n"; break;
+            default: std::cout << "Invalid choice.\n";
         }
     }
     return 0;

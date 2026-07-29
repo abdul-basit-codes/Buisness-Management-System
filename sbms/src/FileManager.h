@@ -7,6 +7,7 @@
 #include "Employee.h"
 #include "Service.h"
 #include "Booking.h"
+#include "Invoice.h"
 
 namespace FileManager {
     std::vector<Customer> loadCustomers(const std::string& path);
@@ -20,6 +21,9 @@ namespace FileManager {
 
     std::vector<Booking> loadBookings(const std::string& path);
     void saveBookings(const std::string& path, const std::vector<Booking>& bookings);
+
+    std::vector<Invoice> loadInvoices(const std::string& path);
+    void saveInvoices(const std::string& path, const std::vector<Invoice>& invoices);
 }
 
 #endif

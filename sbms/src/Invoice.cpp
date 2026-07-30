@@ -1,10 +1,13 @@
 #include "Invoice.h"
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <ctime>
 #include <iomanip>
 
-Invoice::Invoice() : id(0), customerId(0), taxRate(0.0) {
+const std::string INV_FILE = "data/invoices.txt";
+
+Invoice::Invoice() : id(0), customerId(0), taxRate(0.0), discountPercent(0.0), discountedTotal(0.0) {
     std::time_t t = std::time(nullptr);
     std::tm* tm = std::localtime(&t);
     std::ostringstream oss;
@@ -13,9 +16,11 @@ Invoice::Invoice() : id(0), customerId(0), taxRate(0.0) {
 }
 
 Invoice::Invoice(int id, int customerId, const std::vector<int>& serviceIds,
-                 const std::vector<int>& quantities, double taxRate)
+                 const std::vector<int>& quantities, double taxRate,
+                 double discountPercent, double discountedTotal)
     : id(id), customerId(customerId), serviceIds(serviceIds),
-      quantities(quantities), taxRate(taxRate) {
+      quantities(quantities), taxRate(taxRate),
+      discountPercent(discountPercent), discountedTotal(discountedTotal) {
     std::time_t t = std::time(nullptr);
     std::tm* tm = std::localtime(&t);
     std::ostringstream oss;
@@ -28,6 +33,9 @@ int Invoice::getCustomerId() const { return customerId; }
 std::vector<int> Invoice::getServiceIds() const { return serviceIds; }
 std::vector<int> Invoice::getQuantities() const { return quantities; }
 double Invoice::getTaxRate() const { return taxRate; }
+double Invoice::getDiscountPercent() const { return discountPercent; }
+double Invoice::getDiscountedTotal() const { return discountedTotal; }
+void Invoice::setDiscountPercent(double pct) { discountPercent = pct; }
 std::string Invoice::getDate() const { return date; }
 
 double Invoice::getSubtotal(const std::vector<Service>& services) const {
@@ -60,7 +68,8 @@ void Invoice::setTaxRate(double rate) { taxRate = rate; }
 
 std::string Invoice::toCSV() const {
     std::ostringstream oss;
-    oss << id << "," << customerId << "," << taxRate << "," << date << ",";
+    oss << id << "," << customerId << "," << taxRate << "," << discountPercent << ","
+        << discountedTotal << "," << date << ",";
     for (size_t i = 0; i < serviceIds.size(); ++i) {
         if (i > 0) oss << ";";
         oss << serviceIds[i] << ":" << quantities[i];
@@ -70,14 +79,17 @@ std::string Invoice::toCSV() const {
 
 Invoice Invoice::fromCSV(const std::string& line) {
     std::stringstream ss(line);
-    std::string idStr, cidStr, taxStr, dateStr, itemsStr;
+    std::string idStr, cidStr, taxStr, discPctStr, discTotalStr, dateStr, itemsStr;
     std::getline(ss, idStr, ',');
     std::getline(ss, cidStr, ',');
     std::getline(ss, taxStr, ',');
+    std::getline(ss, discPctStr, ',');
+    std::getline(ss, discTotalStr, ',');
     std::getline(ss, dateStr, ',');
     std::getline(ss, itemsStr, ',');
 
-    Invoice inv(std::stoi(idStr), std::stoi(cidStr), {}, {}, std::stod(taxStr));
+    Invoice inv(std::stoi(idStr), std::stoi(cidStr), {}, {}, std::stod(taxStr),
+                std::stod(discPctStr), std::stod(discTotalStr));
     inv.date = dateStr;
 
     std::stringstream itemsSs(itemsStr);
@@ -90,6 +102,24 @@ Invoice Invoice::fromCSV(const std::string& line) {
         if (!sid.empty()) inv.addService(std::stoi(sid), std::stoi(qty));
     }
     return inv;
+}
+
+std::vector<Invoice> Invoice::loadAll() {
+    std::vector<Invoice> invoices;
+    std::ifstream file(INV_FILE);
+    if (!file.is_open()) return invoices;
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+        invoices.push_back(fromCSV(line));
+    }
+    return invoices;
+}
+
+void Invoice::saveAll(const std::vector<Invoice>& invoices) {
+    std::ofstream file(INV_FILE, std::ios::trunc);
+    for (const auto& inv : invoices)
+        file << inv.toCSV() << "\n";
 }
 
 void Invoice::print(const std::vector<Service>& services) const {
@@ -109,6 +139,12 @@ void Invoice::print(const std::vector<Service>& services) const {
     }
     std::cout << "Subtotal: $" << getSubtotal(services) << "\n";
     std::cout << "Tax (" << (taxRate * 100) << "%): $" << getTaxAmount(services) << "\n";
-    std::cout << "Total: $" << getTotal(services) << "\n";
+    if (discountPercent > 0.0) {
+        double discAmt = getTotal(services) * discountPercent / 100.0;
+        std::cout << "Discount (" << discountPercent << "%): -$" << discAmt << "\n";
+        std::cout << "Total after discount: $" << discountedTotal << "\n";
+    } else {
+        std::cout << "Total: $" << getTotal(services) << "\n";
+    }
     std::cout << "==================\n";
 }

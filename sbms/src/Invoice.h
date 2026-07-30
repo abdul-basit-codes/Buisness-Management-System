@@ -10,7 +10,8 @@ class Invoice {
 public:
     Invoice();
     Invoice(int id, int customerId, const std::vector<int>& serviceIds,
-            const std::vector<int>& quantities, double taxRate);
+            const std::vector<int>& quantities, double taxRate,
+            double discountPercent = 0.0, double discountedTotal = 0.0);
 
     int getId() const;
     int getCustomerId() const;
@@ -20,6 +21,9 @@ public:
     double getSubtotal(const std::vector<Service>& services) const;
     double getTaxAmount(const std::vector<Service>& services) const;
     double getTotal(const std::vector<Service>& services) const;
+    double getDiscountPercent() const;
+    double getDiscountedTotal() const;
+    void setDiscountPercent(double pct);
     std::string getDate() const;
 
     void addService(int serviceId, int quantity);
@@ -27,6 +31,8 @@ public:
 
     std::string toCSV() const;
     static Invoice fromCSV(const std::string& line);
+    static std::vector<Invoice> loadAll();
+    static void saveAll(const std::vector<Invoice>& invoices);
     void print(const std::vector<Service>& services) const;
 
 private:
@@ -35,6 +41,8 @@ private:
     std::vector<int> serviceIds;
     std::vector<int> quantities;
     double taxRate;
+    double discountPercent;
+    double discountedTotal;
     std::string date;
 };
 

@@ -19,6 +19,8 @@ public:
 
     std::string toCSV() const;
     static Customer fromCSV(const std::string& line);
+    static std::vector<Customer> loadAll();
+    static void saveAll(const std::vector<Customer>& customers);
 
     void print() const;
 
